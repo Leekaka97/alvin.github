@@ -7,21 +7,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-color: #2563EB; /* 科技蓝 */
+            --primary-color: #2563EB;
             --bg-color: #F3F4F6;
             --sidebar-bg: #1F2937;
             --card-bg: #FFFFFF;
             --text-main: #111827;
             --text-secondary: #6B7280;
             --border-color: #E5E7EB;
-            --danger-color: #EF4444; /* 预警红 */
+            --danger-color: #EF4444;
             --success-color: #10B981;
             --amazon-color: #F59E0B;
             --walmart-color: #0071DC;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        
+
         body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-main); }
 
         /* 侧边栏 */
@@ -49,38 +49,50 @@
         .stat-value { font-size: 28px; font-weight: bold; color: var(--text-main); }
         .stat-value.danger { color: var(--danger-color); }
 
-        /* 表格组件 */
+        /* 表格组件升级：支持详情展开 */
         .table-container { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .filter-bar { padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; }
         .search-input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; width: 300px; outline: none; }
-        
+
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th { text-align: left; padding: 12px 24px; background-color: #F9FAFB; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border-color); }
         td { padding: 16px 24px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-        tr:hover { background-color: #F9FAFB; }
-        
+
+        /* 展开行的样式逻辑 */
+        .clickable-row { cursor: pointer; transition: background-color 0.2s; }
+        .clickable-row:hover { background-color: #F8FAFC; }
+        .detail-row { display: none; background-color: #F9FAFB; }
+        .detail-row.active { display: table-row; }
+        .detail-box { padding: 20px 40px; border-bottom: 1px solid var(--border-color); }
+
+        /* 子渠道表格 */
+        .channel-table { width: 100%; background: white; border: 1px solid #E5E7EB; border-radius: 4px; border-bottom: none; }
+        .channel-table th { background: #fff; padding: 10px 15px; font-size: 12px; border-bottom: 2px solid #F3F4F6; color: #374151;}
+        .channel-table td { padding: 10px 15px; border-bottom: 1px solid #F3F4F6; }
+        .channel-link { color: var(--primary-color); text-decoration: none; font-size: 12px; font-weight: 500;}
+        .channel-link:hover { text-decoration: underline; }
+
+        /* 原有样式保持不变 */
         .product-cell { display: flex; align-items: center; gap: 12px; }
         .product-img { width: 40px; height: 40px; background-color: #e5e7eb; border-radius: 4px; object-fit: cover; }
         .product-info div:first-child { font-weight: 500; margin-bottom: 2px; }
         .product-info div:last-child { font-size: 12px; color: var(--text-secondary); }
-        
+
         .price-tag { font-weight: 600; }
         .price-diff { font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
-        .diff-negative { background-color: #FEF2F2; color: var(--danger-color); } /* 负值代表便宜 */
+        .diff-negative { background-color: #FEF2F2; color: var(--danger-color); }
         .diff-positive { background-color: #ECFDF5; color: var(--success-color); }
-        
+
         .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
         .status-risk { background-color: #FEF2F2; color: #DC2626; }
         .status-safe { background-color: #ECFDF5; color: #059669; }
 
-        /* 模态框 (Modal) */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal.active { display: flex; }
         .modal-content { background: white; width: 900px; max-width: 90%; border-radius: 8px; padding: 24px; position: relative; max-height: 90vh; overflow-y: auto;}
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .close-modal { cursor: pointer; font-size: 24px; color: #9CA3AF; }
 
-        /* 表单样式 */
         .form-group { margin-bottom: 16px; }
         .form-label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: var(--text-main); }
         .form-control { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; }
@@ -89,9 +101,10 @@
         .link-row input { flex: 1; }
         .remove-link { color: var(--danger-color); cursor: pointer; font-size: 12px;}
 
-        /* 页面切换逻辑 */
         .view-section { display: none; }
         .view-section.active { display: block; }
+        .expand-icon { font-size: 10px; color: #9CA3AF; margin-right: 5px; transition: 0.3s; display: inline-block;}
+        .active-icon { transform: rotate(90deg); color: var(--primary-color); }
 
     </style>
 </head>
@@ -111,15 +124,11 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
                 映射管理
             </li>
-            <li class="nav-item">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 5 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                渠道配置
-            </li>
         </ul>
     </nav>
 
     <main class="main-content">
-        
+
         <section id="dashboard" class="view-section active">
             <div class="page-header">
                 <h1 class="page-title">全渠道价格监控大盘</h1>
@@ -127,56 +136,36 @@
             </div>
 
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">监控 ASIN 总数</div>
-                    <div class="stat-value">1,248</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">低价风险预警 (Price War)</div>
-                    <div class="stat-value danger">42</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">丢失 BuyBox 风险</div>
-                    <div class="stat-value" style="color:#F59E0B">15</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">平均抓取成功率</div>
-                    <div class="stat-value" style="color:#2563EB">98.5%</div>
-                </div>
+                <div class="stat-card"><div class="stat-label">监控 ASIN 总数</div><div class="stat-value">1,248</div></div>
+                <div class="stat-card"><div class="stat-label">低价风险预警</div><div class="stat-value danger">42</div></div>
+                <div class="stat-card"><div class="stat-label">丢失 BuyBox 风险</div><div class="stat-value" style="color:#F59E0B">15</div></div>
+                <div class="stat-card"><div class="stat-label">抓取成功率</div><div class="stat-value" style="color:#2563EB">98.5%</div></div>
             </div>
 
             <div class="table-container">
                 <div class="filter-bar">
                     <input type="text" class="search-input" placeholder="搜索 ASIN / SKU / 产品名称...">
-                    <select class="btn btn-outline" style="width: 120px;">
-                        <option>所有状态</option>
-                        <option selected>⚠ 风险预警</option>
-                        <option>安全</option>
-                    </select>
-                    <select class="btn btn-outline" style="width: 120px;">
-                        <option>所有负责人</option>
-                        <option>Alvin</option>
-                        <option>Sarah</option>
-                    </select>
+                    <select class="btn btn-outline" style="width: 120px;"><option>所有状态</option><option selected>⚠ 风险预警</option><option>安全</option></select>
                 </div>
                 <table>
                     <thead>
                         <tr>
                             <th width="35%">产品信息 (ASIN/SKU)</th>
                             <th width="15%">Amazon 售价</th>
-                            <th width="20%">全网最低价 (含运费)</th>
+                            <th width="20%">全网最低价</th>
                             <th width="15%">状态</th>
                             <th width="15%">操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
+                        <tr class="clickable-row" onclick="toggleDetail('row1', this)">
                             <td>
                                 <div class="product-cell">
-                                    <img src="https://via.placeholder.com/40" class="product-img" alt="product">
+                                    <span class="expand-icon">▶</span>
+                                    <img src="https://via.placeholder.com/40" class="product-img">
                                     <div class="product-info">
                                         <div>B08XJ9LM2P (无线降噪耳机)</div>
-                                        <div>SKU: ANC-HEADPHONE-001 | Alvin</div>
+                                        <div>SKU: ANC-001 | Alvin</div>
                                     </div>
                                 </div>
                             </td>
@@ -186,41 +175,53 @@
                                     <span class="price-tag" style="color:var(--danger-color)">$54.50</span>
                                     <span class="price-diff diff-negative">-9%</span>
                                 </div>
-                                <div style="font-size:12px; color:#6B7280; margin-top:4px;">Walmart (Sold by 3rd Party)</div>
+                                <div style="font-size:11px; color:#6B7280; margin-top:4px;">Walmart</div>
                             </td>
                             <td><span class="status-badge status-risk">⚠ 低价风险</span></td>
-                            <td><button class="btn btn-outline" style="font-size:12px;" onclick="openChartModal('B08XJ9LM2P')">📉 查看趋势</button></td>
+                            <td><button class="btn btn-outline" style="font-size:12px;" onclick="stopProp(event); openChartModal('B08XJ9LM2P')">📉 趋势</button></td>
                         </tr>
-
-                        <tr>
-                            <td>
-                                <div class="product-cell">
-                                    <img src="https://via.placeholder.com/40" class="product-img" alt="product">
-                                    <div class="product-info">
-                                        <div>B09KL45MNQ (智能咖啡机)</div>
-                                        <div>SKU: COFFEE-SMART-Pro | Sarah</div>
-                                    </div>
+                        <tr id="row1" class="detail-row">
+                            <td colspan="5">
+                                <div class="detail-box">
+                                    <table class="channel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>来源渠道</th>
+                                                <th>外部标题 (Scraped Title)</th>
+                                                <th>当前售价</th>
+                                                <th>库存状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong style="color:var(--walmart-color)">Walmart</strong></td>
+                                                <td>Sony WH-1000XM4 Noise Canceling Overhead Headphones</td>
+                                                <td style="color:var(--danger-color); font-weight:600;">$54.50</td>
+                                                <td><span style="color:var(--success-color)">In Stock</span></td>
+                                                <td><a href="#" class="channel-link">跳转详情 ↗</a></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>eBay</strong></td>
+                                                <td>New Wireless Noise Cancelling Earphones Black</td>
+                                                <td>$59.90</td>
+                                                <td><span>Limited Stock</span></td>
+                                                <td><a href="#" class="channel-link">跳转详情 ↗</a></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </td>
-                            <td><span class="price-tag">$129.00</span></td>
-                            <td>
-                                <div style="display: flex; align-items: center;">
-                                    <span class="price-tag" style="color:var(--danger-color)">$115.00</span>
-                                    <span class="price-diff diff-negative">-11%</span>
-                                </div>
-                                <div style="font-size:12px; color:#6B7280; margin-top:4px;">eBay (Free Shipping)</div>
-                            </td>
-                            <td><span class="status-badge status-risk">⚠ 低价风险</span></td>
-                            <td><button class="btn btn-outline" style="font-size:12px;" onclick="openChartModal('B09KL45MNQ')">📉 查看趋势</button></td>
                         </tr>
 
-                        <tr>
+                        <tr class="clickable-row" onclick="toggleDetail('row2', this)">
                             <td>
                                 <div class="product-cell">
-                                    <img src="https://via.placeholder.com/40" class="product-img" alt="product">
+                                    <span class="expand-icon">▶</span>
+                                    <img src="https://via.placeholder.com/40" class="product-img">
                                     <div class="product-info">
                                         <div>B07YYY5555 (瑜伽垫)</div>
-                                        <div>SKU: YOGA-MAT-EVA | Alvin</div>
+                                        <div>SKU: YOGA-MAT | Alvin</div>
                                     </div>
                                 </div>
                             </td>
@@ -230,10 +231,36 @@
                                     <span class="price-tag">$26.50</span>
                                     <span class="price-diff diff-positive">+2%</span>
                                 </div>
-                                <div style="font-size:12px; color:#6B7280; margin-top:4px;">Target</div>
+                                <div style="font-size:11px; color:#6B7280; margin-top:4px;">Target</div>
                             </td>
                             <td><span class="status-badge status-safe">正常</span></td>
-                            <td><button class="btn btn-outline" style="font-size:12px;" onclick="openChartModal('B07YYY5555')">📉 查看趋势</button></td>
+                            <td><button class="btn btn-outline" style="font-size:12px;" onclick="stopProp(event); openChartModal('B07YYY5555')">📉 趋势</button></td>
+                        </tr>
+                        <tr id="row2" class="detail-row">
+                            <td colspan="5">
+                                <div class="detail-box">
+                                    <table class="channel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>来源渠道</th>
+                                                <th>外部标题 (Scraped Title)</th>
+                                                <th>当前售价</th>
+                                                <th>库存状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Target</strong></td>
+                                                <td>Premium Non-Slip Yoga Mat 6mm Thick</td>
+                                                <td>$26.50</td>
+                                                <td><span style="color:var(--success-color)">In Stock</span></td>
+                                                <td><a href="#" class="channel-link">跳转详情 ↗</a></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -245,34 +272,17 @@
                 <h1 class="page-title">产品与链接映射</h1>
                 <button class="btn btn-primary" onclick="openAddModal()">+ 录入新产品</button>
             </div>
-
             <div class="table-container">
-                <div class="filter-bar">
-                    <input type="text" class="search-input" placeholder="输入 ASIN 查询...">
-                </div>
+                <div class="filter-bar"><input type="text" class="search-input" placeholder="输入 ASIN 查询..."></div>
                 <table>
                     <thead>
-                        <tr>
-                            <th width="10%">图片</th>
-                            <th width="20%">Amazon ASIN</th>
-                            <th width="40%">已绑定外部渠道 (Url Mappings)</th>
-                            <th width="15%">负责人</th>
-                            <th width="15%">操作</th>
-                        </tr>
+                        <tr><th width="10%">图片</th><th width="20%">Amazon ASIN</th><th width="40%">已绑定外部渠道</th><th width="15%">负责人</th><th width="15%">操作</th></tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><img src="https://via.placeholder.com/40" class="product-img"></td>
-                            <td>
-                                <div style="font-weight:600;">B08XJ9LM2P</div>
-                                <div style="font-size:12px;color:#666;">US 站点</div>
-                            </td>
-                            <td>
-                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                    <span style="background:#EBF5FF; color:#1E40AF; padding:2px 8px; border-radius:4px; font-size:12px;">Walmart US</span>
-                                    <span style="background:#F3F4F6; color:#374151; padding:2px 8px; border-radius:4px; font-size:12px;">BestBuy</span>
-                                </div>
-                            </td>
+                            <td><div style="font-weight:600;">B08XJ9LM2P</div><div style="font-size:12px;color:#666;">US 站点</div></td>
+                            <td><div style="display:flex; gap:8px;"><span style="background:#EBF5FF; color:#1E40AF; padding:2px 8px; border-radius:4px; font-size:12px;">Walmart US</span></div></td>
                             <td>Alvin</td>
                             <td><button class="btn btn-outline" style="font-size:12px;">编辑映射</button></td>
                         </tr>
@@ -280,71 +290,41 @@
                 </table>
             </div>
         </section>
-
     </main>
 
     <div id="chartModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div>
-                    <h3 style="font-size:18px; font-weight:600;">价格走势分析</h3>
-                    <p style="font-size:13px; color:#666;">ASIN: <span id="modalAsin"></span> | 过去 7 天</p>
-                </div>
+                <div><h3>价格走势分析</h3><p style="font-size:13px; color:#666;">ASIN: <span id="modalAsin"></span></p></div>
                 <div class="close-modal" onclick="closeModal('chartModal')">×</div>
             </div>
-            <div style="height: 400px; width: 100%;">
-                <canvas id="priceChart"></canvas>
-            </div>
+            <div style="height: 400px; width: 100%;"><canvas id="priceChart"></canvas></div>
         </div>
     </div>
 
     <div id="addModal" class="modal">
         <div class="modal-content" style="width: 600px;">
-            <div class="modal-header">
-                <h3 style="font-size:18px; font-weight:600;">录入监控产品</h3>
-                <div class="close-modal" onclick="closeModal('addModal')">×</div>
-            </div>
-            
+            <div class="modal-header"><h3>录入监控产品</h3><div class="close-modal" onclick="closeModal('addModal')">×</div></div>
             <form onsubmit="event.preventDefault(); alert('演示：提交成功！'); closeModal('addModal');">
                 <div class="form-group">
                     <label class="form-label">亚马逊母体信息</label>
                     <div style="display:flex; gap:10px;">
-                        <select class="form-control" style="width:120px;">
-                            <option>US</option>
-                            <option>CA</option>
-                            <option>UK</option>
-                        </select>
-                        <input type="text" class="form-control" placeholder="输入 ASIN (例如 B08...)" required>
+                        <select class="form-control" style="width:120px;"><option>US</option></select>
+                        <input type="text" class="form-control" placeholder="输入 ASIN" required>
                         <button class="btn btn-outline">获取信息</button>
                     </div>
-                    <div style="margin-top:8px; font-size:12px; color:#666;">系统将自动抓取主图和标题</div>
                 </div>
-
                 <div class="form-group" style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                    <label class="form-label">外部渠道映射 (Competitors / Channels)</label>
+                    <label class="form-label">外部渠道映射</label>
                     <div id="linkContainer">
                         <div class="link-row">
-                            <select class="form-control">
-                                <option>Walmart</option>
-                                <option>eBay</option>
-                                <option>Target</option>
-                                <option>BestBuy</option>
-                            </select>
-                            <input type="text" class="form-control" placeholder="粘贴外部产品链接 URL">
-                            <span class="remove-link">删除</span>
+                            <select class="form-control"><option>Walmart</option><option>eBay</option></select>
+                            <input type="text" class="form-control" placeholder="粘贴链接 URL">
+                            <span class="remove-link" onclick="this.parentElement.remove()">删除</span>
                         </div>
                     </div>
                     <button type="button" class="btn btn-outline" style="width:100%; border-style:dashed; margin-top:10px;" onclick="addLinkRow()">+ 添加另一个渠道</button>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">负责人</label>
-                    <select class="form-control">
-                        <option>Alvin</option>
-                        <option>Team Member A</option>
-                    </select>
-                </div>
-
                 <div style="margin-top:24px; text-align:right;">
                     <button type="button" class="btn btn-outline" onclick="closeModal('addModal')" style="margin-right:10px;">取消</button>
                     <button type="submit" class="btn btn-primary">保存并开始监控</button>
@@ -354,122 +334,66 @@
     </div>
 
     <script>
-        // 页面切换逻辑
+        // 核心功能：切换详情行显示
+        function toggleDetail(rowId, triggerEl) {
+            const detailRow = document.getElementById(rowId);
+            const icon = triggerEl.querySelector('.expand-icon');
+
+            if (detailRow.classList.contains('active')) {
+                detailRow.classList.remove('active');
+                icon.classList.remove('active-icon');
+            } else {
+                detailRow.classList.add('active');
+                icon.classList.add('active-icon');
+            }
+        }
+
+        // 阻止冒泡，防止点击按钮时触发整行展开
+        function stopProp(e) {
+            e.stopPropagation();
+        }
+
+        // 页面切换
         function switchView(viewId, navElement) {
-            // 隐藏所有 section
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            // 显示目标 section
             document.getElementById(viewId).classList.add('active');
-            
-            // 更新导航栏状态
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             navElement.classList.add('active');
         }
 
-        // 模态框通用逻辑
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
+        // 模态框逻辑
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+        function openAddModal() { document.getElementById('addModal').classList.add('active'); }
 
-        function openAddModal() {
-            document.getElementById('addModal').classList.add('active');
-        }
-
-        // 动态添加链接行
         function addLinkRow() {
             const container = document.getElementById('linkContainer');
             const div = document.createElement('div');
             div.className = 'link-row';
-            div.innerHTML = `
-                <select class="form-control">
-                    <option>Walmart</option>
-                    <option>eBay</option>
-                    <option>Target</option>
-                </select>
-                <input type="text" class="form-control" placeholder="粘贴外部产品链接 URL">
-                <span class="remove-link" onclick="this.parentElement.remove()">删除</span>
-            `;
+            div.innerHTML = `<select class="form-control"><option>Walmart</option><option>eBay</option></select>
+                             <input type="text" class="form-control" placeholder="粘贴链接 URL">
+                             <span class="remove-link" onclick="this.parentElement.remove()">删除</span>`;
             container.appendChild(div);
         }
 
-        // 图表初始化与数据模拟
+        // 图表逻辑
         let priceChartInstance = null;
-
         function openChartModal(asin) {
             document.getElementById('chartModal').classList.add('active');
             document.getElementById('modalAsin').innerText = asin;
-            renderChart();
-        }
-
-        function renderChart() {
             const ctx = document.getElementById('priceChart').getContext('2d');
-            
-            // 如果图表已存在，先销毁
-            if (priceChartInstance) {
-                priceChartInstance.destroy();
-            }
-
-            // 模拟数据：Walmart 在最后两天降价导致预警
-            const labels = ['12-18', '12-19', '12-20', '12-21', '12-22', '12-23', '12-24'];
-            const amazonData = [59.99, 59.99, 59.99, 59.99, 59.99, 59.99, 59.99];
-            const walmartData = [60.00, 60.00, 60.00, 58.50, 58.50, 54.50, 54.50]; // 降价了
-
+            if (priceChartInstance) priceChartInstance.destroy();
             priceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: ['12-20', '12-21', '12-22', '12-23', '12-24'],
                     datasets: [
-                        {
-                            label: 'Amazon (My Price)',
-                            data: amazonData,
-                            borderColor: '#F59E0B', // Amazon 黄
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.1,
-                            pointRadius: 4
-                        },
-                        {
-                            label: 'Walmart',
-                            data: walmartData,
-                            borderColor: '#EF4444', // 红色表示竞对/风险
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            borderWidth: 2,
-                            borderDash: [5, 5], // 虚线
-                            tension: 0.1,
-                            pointRadius: 4
-                        }
+                        { label: 'Amazon', data: [59, 59, 59, 59, 59], borderColor: '#F59E0B', tension: 0.1 },
+                        { label: 'Walmart', data: [60, 58, 58, 54, 54], borderColor: '#EF4444', borderDash: [5,5], tension: 0.1 }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': $' + context.parsed.y;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            grid: { color: '#F3F4F6' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     </script>
 </body>
-
 </html>
